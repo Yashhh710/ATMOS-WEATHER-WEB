@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/128/17189/17189587.png">
+    <title>ATMOS | Weather</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600&family=Share+Tech+Mono&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="holo-overlay" id="holo-layer"></div>
+    <div class="holo-vignette"></div>
+
+    <div id="loading">
+        <div class="loading-visuals">
+            <div class="loading-orbit">
+                <span class="orbit-symbol os1">☀️</span>
+                <span class="orbit-symbol os2">❄️</span>
+                <span class="orbit-symbol os3">⛈️</span>
+                <span class="orbit-symbol os4">☁️</span>
+            </div>
+            <div class="loading-orbit-inner"></div>
+            <div class="energy-core"></div>
+            <div class="loading-logo">
+                <div class="logo">ATM<span>O</span>S</div>
+            </div>
+        </div>
+        <div class="loading-bar-wrap">
+            <div class="loading-bar"></div>
+        </div>
+        <div class="loading-text">SYNCING SATELLITE NETWORK...</div>
+    </div>
+
+
+
+    <div id="dynamic-bg">
+        <div class="sky-gradient"></div>
+        <div class="mountain-range back-range" id="back-range"></div>
+        <div class="mountain-range middle-range" id="mid-range"></div>
+        <div class="mountain-range front-range" id="front-range"></div>
+        <div id="clouds-layer"></div>
+        <div id="fog-layer"></div>
+        <div id="lightning-layer"></div>
+        <!-- Canvas for particles (rain, snow, stars) -->
+        <canvas id="particles-canvas"></canvas>
+    </div>
+
+    <div id="app">
+        <header>
+            <div>
+                <div class="logo">ATM<span>O</span>S <span
+                        style="font-size:0.6rem;letter-spacing:2px;color:var(--text2)">WEATHER</span></div>
+                <div class="greeting-text" id="greeting">INITIALIZING...</div>
+            </div>
+            <div class="header-controls">
+                <div class="search-wrap">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" id="search-input" placeholder="Search city...">
+                    <div id="autocomplete-list"></div>
+                </div>
+                <button class="btn" id="unit-toggle">°C / °F</button>
+                <button class="btn" id="location-btn">📍 My Location</button>
+                <button class="btn" id="fav-btn">⭐ Save</button>
+                <button class="btn" id="settings-btn">⚙️ Settings</button>
+            </div>
+        </header>
+
+        <div id="alert-banner">
+            <span class="alert-icon">⚠️</span>
+            <div class="alert-content">
+                <div class="alert-title">WEATHER ALERT</div>
+                <div class="alert-msg" id="alert-msg">Severe weather conditions detected in your area.</div>
+            </div>
+        </div>
+
+        <div class="main-grid">
+            
+            <div class="card weather-main">
+                <div class="card-title">CURRENT CONDITIONS</div>
+                <span class="weather-icon-big" id="weather-icon">🌡️</span>
+                <div class="city-name" id="city-name">—</div>
+                <div class="country-tag" id="country-tag">LOADING...</div>
+                <div class="temp-display">
+                    <span class="temp-value" id="temp-value">—</span>
+                    <span class="temp-unit" id="unit-label" onclick="toggleUnit()">°C</span>
+                </div>
+                <div class="weather-desc" id="weather-desc">Fetching data...</div>
+                <div class="stat-row">
+                    <div class="stat-chip"><span class="s-label">HUMIDITY</span><span class="s-val"
+                            id="humidity">—</span></div>
+                    <div class="stat-chip"><span class="s-label">PRESSURE</span><span class="s-val"
+                            id="pressure">—</span></div>
+                    <div class="stat-chip"><span class="s-label">FEELS</span><span class="s-val"
+                            id="feels-like">—</span></div>
+                    <div class="stat-chip"><span class="s-label">VISIBILITY</span><span class="s-val"
+                            id="visibility">—</span></div>
+                </div>
+                <div class="sun-row">
+                    <div class="sun-item">
+                        <span class="sun-icon">🌅</span>
+                        <span class="sun-label">SUNRISE</span>
+                        <span class="sun-time" id="sunrise">—</span>
+                    </div>
+                    <div class="sun-item">
+                        <span class="sun-icon">🌇</span>
+                        <span class="sun-label">SUNSET</span>
+                        <span class="sun-time" id="sunset">—</span>
+                    </div>
+                </div>
+                <div style="margin-top:14px;">
+                    <div class="card-title">FAVORITE LOCATIONS</div>
+                    <div class="fav-strip" id="fav-strip"></div>
+                </div>
+            </div>
+
+            
+            <div class="card aqi-card">
+                <div class="card-title">AIR QUALITY & WIND</div>
+                <div class="gauge-row">
+                    <div class="gauge-wrap">
+                        <div class="gauge-label">AQI INDEX</div>
+                        <div class="gauge-ring" id="aqi-ring" style="--pct:0%">
+                            <span class="gauge-val" id="aqi-val">—</span>
+                        </div>
+                        <div class="gauge-status" id="aqi-status">—</div>
+                    </div>
+                    <div class="gauge-wrap">
+                        <div class="gauge-label">UV INDEX</div>
+                        <div class="gauge-ring" id="uv-ring" style="--pct:0%">
+                            <span class="gauge-val" id="uv-val">—</span>
+                        </div>
+                        <div class="gauge-status" id="uv-status">—</div>
+                    </div>
+                </div>
+                <div class="compass-wrap" style="margin-top:20px;">
+                    <div class="gauge-label">WIND COMPASS</div>
+                    <div class="compass">
+                        <div class="compass-labels">
+                            <span class="cn">N</span><span class="cs">S</span>
+                            <span class="cw">W</span><span class="ce">E</span>
+                        </div>
+                        <div class="compass-needle" id="compass-needle"></div>
+                    </div>
+                    <div class="wind-speed-label">WIND SPEED</div>
+                    <div class="wind-speed-val" id="wind-speed">— km/h</div>
+                </div>
+                <div class="stat-row" style="margin-top:20px; border-top:1px solid var(--border); padding-top:15px;">
+                    <div class="stat-chip">
+                        <span class="s-label">WIND GUSTS</span>
+                        <span class="s-val" id="wind-gusts">—</span>
+                    </div>
+                    <div class="stat-chip">
+                        <span class="s-label">CLOUD COVER</span>
+                        <span class="s-val" id="cloud-cover">—</span>
+                    </div>
+
+                    <div class="stat-chip">
+                        <span class="s-label">DEW POINT</span>
+                        <span class="s-val" id="dew-point">—</span>
+                    </div>
+                </div>
+                <div class="stat-row" style="margin-top:10px;">
+                    <div class="stat-chip">
+                        <span class="s-label">PRECIPITATION</span>
+                        <span class="s-val" id="precip-val">—</span>
+                    </div>
+                    <div class="stat-chip">
+                        <span class="s-label">SURFACE PRESS</span>
+                        <span class="s-val" id="surface-press">—</span>
+                    </div>
+                    <div class="stat-chip">
+                        <span class="s-label">WIND DIR</span>
+                        <span class="s-val" id="wind-dir-text">—</span>
+                    </div>
+                </div>
+            </div>
+
+            
+            <div class="card map-card">
+                <div class="card-title">LOCATION MAP</div>
+                <div id="map"></div>
+            </div>
+
+            
+            <div class="card forecast-card">
+                <div class="card-title">5-DAY FORECAST</div>
+                <div class="forecast-grid" id="forecast-grid">
+                    <div style="color:var(--text2);font-size:0.85rem;">Loading forecast...</div>
+                </div>
+            </div>
+
+            
+            <div class="card hourly-card">
+                <div class="card-title">HOURLY FORECAST</div>
+                <div class="hourly-scroll" id="hourly-scroll">
+                    <div style="color:var(--text2);font-size:0.85rem;">Loading...</div>
+                </div>
+            </div>
+
+            
+            <div class="card summary-card">
+                <div class="card-title">AI DAILY SUMMARY</div>
+                <div class="summary-text" id="daily-summary">Fetching your personalized weather report...</div>
+                <div class="notif-row" id="notif-row"></div>
+            </div>
+        </div>
+    </div>
+
+
+
+    
+    
+
+
+    <button id="axon-btn" onclick="toggleAxon()">🤖</button>
+    <div class="axon-label">AXON AI</div>
+
+    <div id="axon-panel">
+        <div class="axon-header">
+            <div class="axon-avatar">🤖</div>
+            <div>
+                <div class="axon-name">AXON</div>
+                <div class="axon-status">Weather Intelligence · Online</div>
+            </div>
+            <button class="axon-close" onclick="toggleAxon()">✕</button>
+        </div>
+        <div class="axon-chat" id="axon-chat"></div>
+        <div class="quick-btns">
+            <button class="quick-btn" onclick="quickAsk(this)">🌡️ Today's weather?</button>
+            <button class="quick-btn" onclick="quickAsk(this)">🌧️ Will it rain?</button>
+            <button class="quick-btn" onclick="quickAsk(this)">☂️ Need umbrella?</button>
+            <button class="quick-btn" onclick="quickAsk(this)">⏰ Best time outside?</button>
+            <button class="quick-btn" onclick="quickAsk(this)">🌬️ Wind conditions?</button>
+            <button class="quick-btn" onclick="quickAsk(this)">📊 Full report</button>
+        </div>
+        <div class="axon-input-row">
+            <input type="text" id="axon-input" placeholder="Ask Axon anything..."
+                onkeydown="if(event.key==='Enter')sendAxon()">
+            <button id="axon-voice-btn" onclick="toggleVoice()" title="Voice input">🎤</button>
+            <button id="axon-send-btn" onclick="sendAxon()">➤</button>
+        </div>
+    </div>
+
+    <div id="settings-panel">
+        <div class="axon-header">
+            <div class="axon-avatar">⚙️</div>
+            <div>
+                <div class="axon-name">SETTINGS</div>
+                <div class="axon-status">Interface Customization</div>
+            </div>
+            <button class="axon-close" onclick="toggleSettings()">✕</button>
+        </div>
+        <div style="padding: 20px;">
+            <div class="card-title" style="margin-bottom:12px;">ENVIRONMENT SANDBOX</div>
+            <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:20px;" id="env-sandbox">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <label style="font-size:0.75rem; color:var(--text2); letter-spacing:1px; font-family:'Share Tech Mono', monospace;">TIME OF DAY</label>
+                    <select id="time-select">
+                        <option value="auto">Auto Sync</option>
+                        <option value="morning">Morning</option>
+                        <option value="day">Day</option>
+                        <option value="evening">Evening</option>
+                        <option value="night">Night</option>
+                    </select>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <label style="font-size:0.75rem; color:var(--text2); letter-spacing:1px; font-family:'Share Tech Mono', monospace;">ATMOSPHERE</label>
+                    <select id="weather-select">
+                        <option value="auto">Real-time Data</option>
+                        <option value="clear">Clear Sky</option>
+                        <option value="clouds">Cloudy</option>
+                        <option value="rain">Rain</option>
+                        <option value="thunderstorm">Thunderstorm</option>
+                        <option value="snow">Snow</option>
+                        <option value="mist">Fog / Mist</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="card-title" style="margin-top:20px; margin-bottom:12px;">VISUAL EFFECTS</div>
+            <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:20px;">
+                <div style="display:flex; flex-direction:column; gap:6px;">
+                    <div style="display:flex; justify-content:space-between;">
+                        <label style="font-size:0.65rem; color:var(--text2); letter-spacing:1px; font-family:'Share Tech Mono', monospace;">GLASS BLUR</label>
+                        <span id="blur-val" style="font-size:0.65rem; color:var(--accent);">20px</span>
+                    </div>
+                    <input type="range" id="blur-slider" min="0" max="50" value="20" style="width:100%; accent-color:var(--accent);">
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <label style="font-size:0.65rem; color:var(--text2); letter-spacing:1px; font-family:'Share Tech Mono', monospace;">HOLOGRAPHIC OVERLAY</label>
+                    <input type="checkbox" id="holo-toggle" style="width:18px; height:18px; accent-color:var(--accent);">
+                </div>
+            </div>
+
+            <div class="card-title">GLOBAL PRESETS</div>
+            <div class="theme-grid" id="preset-grid">
+                <div class="theme-opt active" onclick="applyPreset('cyberpunk')"
+                    style="background:linear-gradient(45deg, #00d4ff, #7b2fff)"><span
+                        class="theme-label">Cyberpunk</span></div>
+                <div class="theme-opt" onclick="applyPreset('synthwave')"
+                    style="background:linear-gradient(45deg, #ff00ff, #7b2fff)"><span class="theme-label">Synthwave</span></div>
+                <div class="theme-opt" onclick="applyPreset('ocean')"
+                    style="background:linear-gradient(45deg, #00d4ff, #004488)"><span class="theme-label">Ocean</span></div>
+                <div class="theme-opt" onclick="applyPreset('nebula')"
+                    style="background:linear-gradient(45deg, #ff3366, #7b2fff)"><span class="theme-label">Nebula</span></div>
+                <div class="theme-opt" onclick="applyPreset('space')"
+                    style="background:linear-gradient(45deg, #333, #000)"><span class="theme-label">Deep Space</span></div>
+                <div class="theme-opt" onclick="applyPreset('ghost')"
+                    style="background:linear-gradient(45deg, #fff, #00d4ff)"><span class="theme-label">Ghost /
+                        Frost</span></div>
+                <div class="theme-opt" onclick="applyPreset('vulcan')"
+                    style="background:linear-gradient(45deg, #ff3366, #ffd700)"><span class="theme-label">Vulcan /
+                        Lava</span></div>
+                <div class="theme-opt" onclick="applyPreset('toxic')"
+                    style="background:linear-gradient(45deg, #00ff88, #000)"><span class="theme-label">Toxic /
+                        Moss</span></div>
+            </div>
+
+            <div class="card-title" style="margin-top:20px;">UI ACCENT ONLY</div>
+            <div class="theme-grid">
+                <div class="theme-opt" onclick="applyColorTheme('cyan')" style="background:#00d4ff"><span class="theme-label">Cyber Blue</span></div>
+                <div class="theme-opt" onclick="applyColorTheme('emerald')" style="background:#00ff88"><span class="theme-label">Emerald</span></div>
+                <div class="theme-opt" onclick="applyColorTheme('gold')" style="background:#ffd700"><span class="theme-label">Gold Rush</span></div>
+                <div class="theme-opt" onclick="applyColorTheme('ruby')" style="background:#ff3366"><span class="theme-label">Ruby Red</span></div>
+                <div class="theme-opt" onclick="applyColorTheme('amethyst')" style="background:#7b2fff"><span class="theme-label">Amethyst</span></div>
+                <div class="theme-opt" onclick="applyColorTheme('orange')" style="background:#ff8c00"><span class="theme-label">Sunset Orange</span></div>
+                <div class="theme-opt" onclick="applyColorTheme('mint')" style="background:#00ffee"><span class="theme-label">Mint Neon</span></div>
+                <div class="theme-opt" onclick="applyColorTheme('crimson')" style="background:#ff0044"><span class="theme-label">Crimson</span></div>
+                <div class="theme-opt" onclick="applyColorTheme('lavender')" style="background:#cc99ff"><span class="theme-label">Lavender</span></div>
+                <div class="theme-opt" onclick="applyColorTheme('arctic')" style="background:#aaddff"><span class="theme-label">Arctic Ice</span></div>
+            </div>
+            <button class="btn"
+                style="width:100%; margin-top:30px; justify-content:center; border-style:dashed; opacity:0.8;"
+                onclick="resetTheme()">
+                🔄 RESET ALL TO DEFAULT
+            </button>
+        </div>
+    </div>
+
+
+    <div class="toast" id="toast"></div>
+
+
+    <script src="script.js"></script>
+</body>
+
+</html>
